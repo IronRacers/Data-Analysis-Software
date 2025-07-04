@@ -1,0 +1,4 @@
+- Como obter os dados de acordo com a volta selecionada 
+- Mostrar os dados e o tangent
+- Mostrar os graficos 
+- As conclusões tiradas

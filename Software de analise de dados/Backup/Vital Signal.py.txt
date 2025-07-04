@@ -1,0 +1,816 @@
+#  ----------------------------------------------------------------------------------------------------------------------#
+# LIBRARY IMPORT
+# ----------------------------------------------------------------------------------------------------------------------#
+
+# Import library
+import streamlit as st  # Streamlit library
+import pandas as pd  # Pandas library is used of export excel data.
+from streamlit_option_menu import option_menu
+import numpy as np
+import plotly.graph_objects as go
+import plotly.subplots as sp
+import plotly.express as px
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+
+
+# ----------------------------------------------------------------------------------------------------------------------#
+
+# Agente inteligente de detecção de baixa pressão
+def oil_pressure_agent(df):
+    df['Min_Oil_Pressure'] = df['RPM'].apply(interpolar_pressao_minima)
+    df['Alert'] = df['Pressão_de_Óleo'] < df['Min_Oil_Pressure']
+    alerts = df[df['Alert']].copy()
+
+    # Hipótese: alertas com alta aceleração lateral são causados por forças laterais
+    acc_lateral_threshold = 1  # valor de referência em m/s²
+    alerts['Possível Causa'] = np.where(
+        alerts['AccLateral'] > acc_lateral_threshold,
+        'Alta força lateral',
+        'Outro fator'
+    )
+
+    return df, alerts
+#  ----------------------------------------------------------------------------------------------------------------------#
+
+
+#  ----------------------------------------------------------------------------------------------------------------------#
+# Setup setting
+# ----------------------------------------------------------------------------------------------------------------------#
+st.title("Vital Signal")
+
+if st.session_state.uploaded_file is None:  # If the workbook is not selected
+    st.write('Seleted the WorkBook')
+
+if st.session_state['uploaded_file'] is not None:  # If the workbook is selected
+    # Function to load and display a CSV file based on the given name.
+    # Constructing the path of the CSV file based on the given name
+    # Dicionário de mapeamento de tag para log_path
+
+    colors = {
+        "Jenifer": "blue",
+        "Muniz": "red",
+        "Rafael": "green",
+        "Piloto4": "purple",
+        # Adicione mais pilotos e cores conforme necessário
+    }
+    row_heights = [1, 1, 1, 1, 1]
+
+    fig = sp.make_subplots(rows=5, cols=1, shared_xaxes=True,
+                           vertical_spacing=0.06, row_heights=row_heights)
+    # Criação da figura
+    # Criação do histograma
+    fig_hist = go.Figure()
+
+    tabs = st.tabs(["KPI", "X/Y Analysis", "Presure Analysis", "Trend"])
+
+    def get_indicator(value, high_threshold, medium_threshold):
+        if value > high_threshold:
+            return "🟥"
+        elif medium_threshold[0] <= value <= medium_threshold[1]:
+            return "🟩"
+        else:
+            return "🟦"
+
+    def display_value_with_indicator(value, high_threshold, medium_threshold, unit, precision=0):
+        indicator = get_indicator(value, high_threshold, medium_threshold)
+        formatted_value = f"{value:.{precision}f}"
+        return f"""
+    <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 17px;">
+        <span style="font-weight: bold; width: 100px;">{formatted_value}{unit}</span>
+        <span style="width: 10px; text-align: center;">{indicator}</span>
+    </div>
+    """
+
+    with tabs[0]:
+        for i, driver in enumerate(st.session_state.selected_drivers):
+            Tag = st.session_state.get(f'Tag_{driver}')
+
+            # Selecionando o caminho do log com base na tag
+            File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+            # Ler o arquivo CSV
+            DfLog = pd.read_csv(File)
+            # Converter todas as colunas para float
+            DfLog = DfLog.apply(
+                pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+            if i >= 1:
+                st.divider()
+            st.markdown(
+                f"""
+                                    <div style="
+                                        display: inline-block;
+                                        padding: 8px 20px;
+                                        margin-top: 0px;
+                                        background-color: #666262;
+                                        border-radius: 4px;
+                                        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);                                    font-size: 16px;
+                                        color: #fcfcfc;
+                                        text-align: center;
+                                    ">
+                                        Drive: {
+                    st.session_state['General_Information'].loc[Tag - 1, ('Piloto')]}
+                                    </div>
+                                    """,
+                unsafe_allow_html=True
+            )
+            st.subheader("KPI reports of vital signal")
+
+            # Definindo thresholds
+            temp_high_threshold = 100
+            temp_medium_threshold = (70, 100)
+
+            pressao_motor_high_threshold = 10
+            pressao_motor_medium_threshold = (1, 10)
+
+            combustivel_high_threshold = 4
+            combustivel_medium_threshold = (2, 4)
+
+            Tensao_high_threshold = 14
+            Tensao_medium_threshold = (10, 14)
+
+            # Layout com colunas
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+
+            with col1:
+                st.write("Type")
+                st.write("Engine temperature:")
+                st.write("Engine oil pressure:")
+                st.write("Fuel pressure:")
+                st.write("Battery voltage:")
+
+            with col2:
+                st.write("Max")
+                st.write(display_value_with_indicator(
+                    np.max(DfLog['Temp._do_motor']), temp_high_threshold, temp_medium_threshold, " °C", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.max(DfLog['Pressão_de_Óleo']),
+                                                      pressao_motor_high_threshold, pressao_motor_medium_threshold, " bar", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.max(DfLog['Pressão_de_Combustível']),
+                                                      combustivel_high_threshold, combustivel_medium_threshold, " bar", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.max(DfLog['Tensão_da_Bateria']),
+                                                      Tensao_high_threshold, Tensao_medium_threshold, " V", precision=1), unsafe_allow_html=True)
+
+            with col3:
+                filtered_DfLog = DfLog[DfLog['Tensão_da_Bateria'] >= 6]
+                st.write("Min")
+                st.write(display_value_with_indicator(
+                    np.min(filtered_DfLog['Temp._do_motor']), temp_high_threshold, temp_medium_threshold, " °C", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.min(filtered_DfLog['Pressão_de_Óleo']),
+                                                      pressao_motor_high_threshold, pressao_motor_medium_threshold, " bar", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.min(filtered_DfLog['Pressão_de_Combustível']),
+                                                      combustivel_high_threshold, combustivel_medium_threshold, " bar", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.min(filtered_DfLog['Tensão_da_Bateria']),
+                                                      Tensao_high_threshold, Tensao_medium_threshold, " V", precision=1), unsafe_allow_html=True)
+
+            with col4:
+                st.write("Média")
+                st.write(display_value_with_indicator(
+                    np.mean(DfLog['Temp._do_motor']), temp_high_threshold, temp_medium_threshold, " °C", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.mean(DfLog['Pressão_de_Óleo']),
+                                                      pressao_motor_high_threshold, pressao_motor_medium_threshold, " bar", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.mean(DfLog['Pressão_de_Combustível']),
+                                                      combustivel_high_threshold, combustivel_medium_threshold, " bar", precision=1), unsafe_allow_html=True)
+                st.write(display_value_with_indicator(np.mean(DfLog['Tensão_da_Bateria']),
+                                                      Tensao_high_threshold, Tensao_medium_threshold, " V", precision=1), unsafe_allow_html=True)
+    with tabs[1]:
+        st.subheader("X/Y Analysis")
+
+        for i, driver in enumerate(st.session_state.selected_drivers):
+            Tag = st.session_state.get(f'Tag_{driver}')
+
+            # Selecionando o caminho do log com base na tag
+            File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+            # Read a file CSV
+            DfLog = pd.read_csv(File)
+            # Converting all columns to integers
+            # First, we convert to numbers and then to integers
+            DfLog = DfLog.apply(
+                pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+            variable_driving_Log = [
+                'RPM', 'T.Motor', 'Bateria', 'P.Óleo', 'P.Combustível']
+
+            # Use 'Orange' como padrão se o piloto não estiver no dicionário
+            driver_color = colors.get(driver, 'Orange')
+
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['RPM'],
+                                     mode='lines', name=f'{driver} - RPM',  line=dict(color=driver_color)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['Temp._do_motor'], mode='lines', name=f'{
+                driver} - Temp. Motor',  line=dict(color=driver_color)),  row=2, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['Tensão_da_Bateria'], mode='lines',  name=f'{
+                driver}-Bateria',  line=dict(color=driver_color)), row=3, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['Pressão_de_Óleo'], mode='lines', name=f'{
+                driver} - P.Óleo', line=dict(color=driver_color)), row=4, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['Pressão_de_Combustível'], mode='lines', name=f'{
+                driver} - P.Combustível', line=dict(color=driver_color)), row=5, col=1)
+
+            # Configura o layout do gráfico
+            fig.update_layout(
+                # Adiciona um título
+                title={
+                    'text': f'Vital Signal Analysis',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'y': 0.95,
+                    'yanchor': 'top',
+                    'font': {'size': 32}
+                },
+                showlegend=False,
+                hovermode="x unified",
+                height=600,
+                # Cor de fundo do gráfico (área de plotagem)
+                plot_bgcolor='#0E1117',
+                # Cor de fundo do papel (área fora do gráfico)
+                paper_bgcolor='#0E1117'
+            )
+            # Oculta os eixos y para os 6 gráficos de linha gerados
+            fig.update_yaxes(showticklabels=False)
+
+        # Adiciona os nomes das variáveis no eixo Y para os 6 gráficos de linha gerados
+        for j, variable_driving in enumerate(variable_driving_Log, start=1):
+            fig.update_yaxes(title_text=variable_driving, row=j, col=1)
+
+        # Usa o st.plotly_chart para exibir o gráfico no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tabs[2]:
+        st.subheader("Pressure Analysis")
+
+        # Carrega os dados da planilha de pressões mínimas de óleo
+        Oil_Pressure_Min = {
+            'RPM': [0, 1000, 1500, 3000, 4500, 6000, 7500, 9000, 10500],
+            'OilMin': [0, 0.7, 0.85, 1.3, 2.3, 3.9, 4.5, 4.8, 5]
+        }
+
+        # Função para interpolar o valor de OilMin para uma rotação específica
+        def interpolar_pressao_minima(rpm_atual):
+            return np.interp(rpm_atual, Oil_Pressure_Min['RPM'], Oil_Pressure_Min['OilMin'])
+
+        # Configurações iniciais para o gráfico
+        fig = go.Figure()
+
+        fig = sp.make_subplots(rows=len(st.session_state.selected_drivers), cols=1, shared_xaxes=True,
+                               vertical_spacing=0.06)
+
+        # Loop sobre cada piloto selecionado
+        for i, driver in enumerate(st.session_state.selected_drivers):
+            Tag = st.session_state.get(f'Tag_{driver}')
+
+            # Selecionando o caminho do log com base na tag
+            File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+            # Carrega o arquivo CSV
+            DfLog = pd.read_csv(File)
+
+            # Converte todas as colunas para float
+            DfLog = DfLog.apply(
+                pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+            # Obtém a rotação atual (RPM) do DfLog e calcula a pressão mínima interpolada para cada ponto
+            DfLog['Pressao_Minima_Interpolada'] = DfLog['RPM'].apply(
+                interpolar_pressao_minima)
+
+            # Define a cor do piloto
+            driver_color = colors.get(driver, 'Orange')
+
+            # Verifica se a pressão de óleo é menor que a pressão mínima
+            below_min_mask = DfLog['Pressão_de_Óleo'] < DfLog['Pressao_Minima_Interpolada']
+
+            # Adiciona a linha de pressão de óleo
+            fig.add_trace(
+                go.Scatter(
+                    x=DfLog['Distância'],
+                    y=DfLog['Pressão_de_Óleo'],
+                    mode='lines',
+                    name=f'{driver} - P.Oil',
+                    line=dict(color=driver_color, width=2)
+                ),
+                row=i + 1, col=1
+            )
+
+            # Adiciona a pressão mínima interpolada
+            fig.add_trace(
+                go.Scatter(
+                    x=DfLog['Distância'],
+                    y=DfLog['Pressao_Minima_Interpolada'],
+                    mode='lines',
+                    name=f'{driver} - P.Oil Min',
+                    line=dict(color='darkcyan', width=2, dash='dot')
+                ),
+                row=i + 1, col=1
+            )
+
+            # Configura o layout do gráfico
+            fig.update_layout(
+                title={
+                    'text': 'Oil Pressure vs. Minimum Oil Pressure',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'y': 0.95,
+                    'yanchor': 'top',
+                    'font': {'size': 32}
+                },
+                # ou "Tempo (s)", dependendo do eixo X do seu gráfico
+                # or "Time (s)" if your X-axis is time
+                xaxis_title="Distance (m)",
+                yaxis_title="Oil Pressure (bar)",
+                hovermode="x unified",
+                height=600,
+                plot_bgcolor='#0E1117',
+                paper_bgcolor='#0E1117',
+                showlegend=True
+            )
+
+            # Oculta os eixos y para os 6 gráficos de linha gerados
+            fig.update_yaxes(showticklabels=False)
+
+        # Usa o st.plotly_chart para exibir o gráfico no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        # Pressão mínima interpolada com base na curva
+        DfLog['Pressao_Minima_Interpolada'] = DfLog['RPM'].apply(
+            interpolar_pressao_minima)
+
+        # Separa os pontos com base na condição: pressão real < pressão mínima interpolada
+        df_baixa_pressao = DfLog[DfLog['Pressão_de_Óleo']
+                                 < DfLog['Pressao_Minima_Interpolada']]
+        df_pressao_normal = DfLog[DfLog['Pressão_de_Óleo']
+                                  >= DfLog['Pressao_Minima_Interpolada']]
+
+        fig_3d = go.Figure()
+
+        # PONTOS COM PRESSÃO NORMAL (coloridos por valor)
+        fig_3d.add_trace(go.Scatter3d(
+            x=df_pressao_normal['RPM'],
+            y=df_pressao_normal['Temp._do_motor'],
+            z=df_pressao_normal['Pressão_de_Óleo'],
+            mode='markers',
+            name='Normal Pressure',
+            marker=dict(
+                size=4,
+                color=df_pressao_normal['Pressão_de_Óleo'],
+                colorscale='Viridis',
+                cmin=0,
+                cmax=6,
+                opacity=0.8,
+                colorbar=dict(
+                    title='Oil Pressure (bar)',
+                    titlefont=dict(color='white', size=14),
+                    tickfont=dict(color='white'),
+                    len=0.75,
+                    thickness=20,
+                    x=1.05
+                )
+            ),
+            showlegend=True
+        ))
+
+        # PONTOS COM PRESSÃO BAIXA (em vermelho)
+        fig_3d.add_trace(go.Scatter3d(
+            x=df_baixa_pressao['RPM'],
+            y=df_baixa_pressao['Temp._do_motor'],
+            z=df_baixa_pressao['Pressão_de_Óleo'],
+            mode='markers',
+            name='Low Pressure',
+            marker=dict(
+                size=6,
+                color='red',
+                opacity=0.9,
+                symbol='circle'
+            ),
+            showlegend=True
+        ))
+
+        # LAYOUT
+        fig_3d.update_layout(
+            title='RPM vs Temperature vs Oil Pressure',
+            scene=dict(
+                xaxis_title='RPM',
+                yaxis_title='Engine Temp. (°C)',
+                zaxis_title='Oil Pressure (bar)',
+                bgcolor='rgb(14,17,23)'
+            ),
+            legend=dict(
+                x=0.85, y=0.95,
+                bgcolor='rgba(0,0,0,0)',
+                font=dict(color='white')
+            ),
+            paper_bgcolor='#0E1117',
+            font=dict(color='white'),
+            height=700
+        )
+
+        st.plotly_chart(fig_3d, use_container_width=True)
+
+        st.divider()
+
+        # Define o grau do polinômio para a linha de tendência
+        grau_polinomio = 8
+
+        # Configurações iniciais para o gráfico
+        fig = go.Figure()
+        fig = sp.make_subplots(rows=len(st.session_state.selected_drivers), cols=1, shared_xaxes=True,
+                               vertical_spacing=0.06)
+
+        # Loop sobre cada piloto selecionado
+        for i, driver in enumerate(st.session_state.selected_drivers):
+            Tag = st.session_state.get(f'Tag_{driver}')
+
+            # Selecionando o caminho do log com base na tag
+            File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+            # Carrega o arquivo CSV
+            DfLog = pd.read_csv(File)
+
+            # Converte todas as colunas para float
+            DfLog = DfLog.apply(
+                pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+            # Calcula a pressão mínima interpolada para cada ponto de RPM
+            DfLog['Pressao_Minima_Interpolada'] = DfLog['RPM'].apply(
+                interpolar_pressao_minima)
+
+            # Define a cor do piloto
+            driver_color = colors.get(driver, 'Orange')
+
+            # Adiciona os pontos de pressão de óleo em função do RPM, sem linhas
+            fig.add_trace(
+                go.Scatter(
+                    x=DfLog['RPM'],
+                    y=DfLog['Pressão_de_Óleo'],
+                    mode='markers',  # Exibe somente pontos
+                    name=f'{driver} - P.Oil',
+                    marker=dict(color=driver_color, size=6)
+                ),
+                row=i + 1, col=1
+            )
+
+            # Amostra 100 pontos uniformemente no intervalo de RPM
+            rpm_sampled = np.linspace(
+                DfLog['RPM'].min(), DfLog['RPM'].max(), 8)
+
+            # Ajuste de uma linha de tendência polinomial usando pontos amostrados
+            coeficientes = np.polyfit(
+                DfLog['RPM'], DfLog['Pressão_de_Óleo'], grau_polinomio)
+            polinomio = np.poly1d(coeficientes)
+            tendencia = polinomio(rpm_sampled)
+
+            # Adiciona a linha de tendência polinomial
+            fig.add_trace(
+                go.Scatter(
+                    x=rpm_sampled,
+                    y=tendencia,
+                    mode='lines',
+                    name=f'{driver} - Trend P.Oil',
+                    line=dict(color='lightcyan', width=2, dash='dash')
+                ),
+                row=i + 1, col=1
+            )
+
+            # Adiciona os pontos de pressão mínima interpolada, sem linhas
+            fig.add_trace(
+                go.Scatter(
+                    x=DfLog['RPM'],
+                    y=DfLog['Pressao_Minima_Interpolada'],
+                    mode='markers',  # Exibe somente pontos
+                    name=f'{driver} - P.Oil Min',
+                    marker=dict(color='darkcyan', size=6, symbol='cross')
+                ),
+                row=i + 1, col=1
+            )
+            # Configura o layout do gráfico
+            fig.update_layout(
+                title={
+                    'text': 'Oil Pressure vs. RPM',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'y': 0.95,
+                    'yanchor': 'top',
+                    'font': {'size': 32}
+                },
+                xaxis_title="RPM",
+                yaxis_title="Oil Pressure (bar)",
+                hovermode="x unified",
+                height=600,
+                plot_bgcolor='#0E1117',
+                paper_bgcolor='#0E1117',
+                showlegend=True
+            )
+
+        # Usa o st.plotly_chart para exibir o gráfico no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("🚨 Resultados do Agente")
+        #  ----------------------------------------------------------------------------------------------------------------------#
+        # Filter
+        # ----------------------------------------------------------------------------------------------------------------------#
+        # Cálculo da aceleração longitudinal
+        sample_time = 1 / 100  # considerando frequência de amostragem de 50 Hz
+
+        g = 9.81  # aceleração da gravidade em m/s²
+
+        # Cálculo da aceleração longitudinal em g
+        acc_long_g = DfLog['AccLongitudinal'] = (
+            (DfLog['Velocidade_de_referência']/3.6).diff() / sample_time) / g
+        # Define condição de aceleração implausível
+        cond_erro_spike = (DfLog['Velocidade_de_referência'] > 30) & (
+            acc_long_g.abs() <= 10)
+        cond_parado = acc_long_g.abs() <= 0.05
+        cond_vel_alta_sem_acc = (DfLog['Velocidade_de_referência'] > 30) & (
+            acc_long_g.abs() <= 0.05)
+
+        # Combina as duas condições
+        cond_erro_vel = cond_vel_alta_sem_acc | cond_erro_spike
+
+        # Corrige velocidade se for implausível
+        DfLog['Velocidade_corrigida'] = DfLog['Velocidade_de_referência']
+        DfLog.loc[cond_parado, 'Velocidade_corrigida'] = np.nan   # ou = 0
+        DfLog.loc[cond_vel_alta_sem_acc, 'Velocidade_corrigida'] = 0  # ou = 0
+
+        # Interpolar os buracos
+        DfLog['Velocidade_corrigida'] = DfLog['Velocidade_corrigida'].interpolate(
+        ).fillna(method='bfill').fillna(method='ffill')
+
+        # E aplicar uma média móvel se quiser mais suavização
+        DfLog['Velocidade_corrigida'] = DfLog['Velocidade_corrigida'].rolling(
+            window=80, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+
+        # ----------------------------------------------------------------------------------------------------------------------#
+
+        # Cálculo da aceleração longitudinal
+        sample_time = 1 / 100  # considerando frequência de amostragem de 50 Hz
+
+        # Cálculo da aceleração longitudinal em g
+        DfLog['AccLongitudinal'] = (
+            (DfLog['Velocidade_corrigida']/3.6).diff() / sample_time) / g
+
+        # Cálculo da aceleração lateral em g (Skidpad padrão com raio de 8.5 m) e G combinado
+        raio_skidpad = 8.5  # metros
+        DfLog['AccLateral'] = (
+            ((DfLog['Velocidade_corrigida']/3.6) ** 2) / raio_skidpad) / g
+
+        DfLog['G_Comb'] = np.sqrt(
+            DfLog['AccLongitudinal']**2 + DfLog['AccLateral']**2) / g
+
+        # E aplicar uma média móvel se quiser mais suavização
+        DfLog['AccLongitudinal'] = DfLog['AccLongitudinal'].rolling(
+            window=30, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+        DfLog['AccLateral'] = DfLog['AccLateral'].rolling(
+            window=20, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+        DfLog['G_Comb'] = DfLog['G_Comb'].rolling(
+            window=30, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+
+        df, alerts = oil_pressure_agent(DfLog)
+
+        if not alerts.empty:
+
+            # Criação da figura estilo vital signal com AccLateral + marcação de baixa pressão
+            fig = sp.make_subplots(
+                rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.09)
+
+            # Linha 1 - Pressão de óleo
+            fig.add_trace(
+                go.Scatter(
+                    x=df['TIME'],
+                    y=df['Pressão_de_Óleo'],
+                    mode='lines',
+                    name='P.Oil',
+                    marker=dict(color='blue', size=6)
+                ),
+                row=1, col=1
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=df['TIME'],
+                    y=df['Min_Oil_Pressure'],
+                    mode='lines',
+                    name='Min. P.Oil',
+                    line=dict(dash='dash', color='darkcyan')
+                ),
+                row=1, col=1
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=alerts['TIME'],
+                    y=alerts['Pressão_de_Óleo'],
+                    mode='markers',
+                    name='Alerts',
+                    marker=dict(color='red', size=8, symbol='x')
+                ),
+                row=1, col=1
+            )
+
+            # Linha 2 - Temperatura do motor
+            fig.add_trace(
+                go.Scatter(
+                    x=df['TIME'],
+                    y=df['Temp._do_motor'],
+                    mode='lines',
+                    name='Engine Temperature',
+                    line=dict(color='orange')
+                ),
+                row=2, col=1
+            )
+
+            # Layout
+            fig.update_layout(
+                title="Analysis: Low Oil Pressure and Engine temperature",
+                height=800,
+                showlegend=True,
+                plot_bgcolor='#0E1117',
+                paper_bgcolor='#0E1117',
+                font=dict(color='white')
+            )
+
+            fig.update_yaxes(title_text="Oil Pressure (bar)", row=1, col=1)
+            fig.update_yaxes(title_text="Engine Temp. (°C)", row=2, col=1)
+            fig.update_xaxes(title_text="Time (s)", row=2, col=1)
+
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Criação da figura estilo vital signal com AccLateral + marcação de baixa pressão
+            fig = sp.make_subplots(
+                rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.09)
+
+            # Linha 1 - AccLongitudinal
+            fig.add_trace(
+                go.Scatter(
+                    x=df['TIME'],
+                    y=df['AccLongitudinal'],
+                    mode='lines',
+                    name='Acc. Longitudinal',
+                    marker=dict(color='blue', size=6)
+                ),
+                row=1, col=1
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=alerts['TIME'],
+                    y=alerts['AccLongitudinal'],
+                    mode='markers',
+                    name='AccLongitudinal - Low P.Oil',
+                    marker=dict(color='red', size=6, symbol='circle')
+                ),
+                row=1, col=1
+            )
+
+            # Linha 2 - Temperatura do motor
+            fig.add_trace(
+                go.Scatter(
+                    x=df['TIME'],
+                    y=df['AccLateral'],
+                    mode='lines',
+                    name='Acc. Lateral',
+                    line=dict(color='cyan')
+                ),
+                row=2, col=1
+            )
+
+            # Marcar os pontos críticos de pressão de óleo com círculos vermelhos sobre AccLateral
+            fig.add_trace(
+                go.Scatter(
+                    x=alerts['TIME'],
+                    y=alerts['AccLateral'],
+                    mode='markers',
+                    name='AccLateral - Low P.Oil',
+                    marker=dict(color='red', size=6, symbol='circle')
+                ),
+                row=2, col=1
+            )
+
+            # Linha 3 - AccLateral total
+            fig.add_trace(
+                go.Scatter(
+                    x=df['TIME'],
+                    y=df['G_Comb'],
+                    mode='lines',
+                    name='G_Comb',
+                    line=dict(color='Green')
+                ),
+                row=3, col=1
+            )
+
+            # Marcar os pontos críticos de pressão de óleo com círculos vermelhos sobre AccLateral
+            fig.add_trace(
+                go.Scatter(
+                    x=alerts['TIME'],
+                    y=alerts['G_Comb'],
+                    mode='markers',
+                    name='G_Comb - Low P.Oil',
+                    marker=dict(color='red', size=6, symbol='circle')
+                ),
+                row=3, col=1
+            )
+
+            # Layout
+            fig.update_layout(
+                title="Analysis: Low Oil Pressure and Accelerations",
+                xaxis_title="Time (s)",
+                height=800,
+                showlegend=True,
+                plot_bgcolor='#0E1117',
+                paper_bgcolor='#0E1117',
+                font=dict(color='white')
+            )
+
+            fig.update_yaxes(title_text="Longitudinal Acc. (g)", row=1, col=1)
+            fig.update_yaxes(title_text="Lateral Acc. (g)", row=2, col=1)
+            fig.update_yaxes(title_text="Comb Acc. (g)", row=3, col=1)
+            fig.update_xaxes(title_text="Time (s)", row=2, col=1)
+            fig.update_xaxes(title_text="Time (s)", row=3, col=1)
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        else:
+            st.success("Nenhum ponto crítico detectado ✨")
+
+        df_critico = df[df['Pressão_de_Óleo']
+                        < df['Pressao_Minima_Interpolada']]
+
+        # Calcular correlação
+        colunas = ['Pressão_de_Óleo', 'AccLongitudinal',
+                   'AccLateral', 'G_Comb', 'Temp._do_motor']
+        corr_col = df_critico[colunas].corr().loc[['Pressão_de_Óleo']].drop(
+            'Pressão_de_Óleo', axis=1).T
+
+        fig = go.Figure(data=go.Bar(
+            x=corr_col.index,
+            y=corr_col['Pressão_de_Óleo'],
+            marker_color='darkcyan'
+        ))
+
+        fig.update_layout(
+            title="Oil Pressure Correlation with Dynamic Variables (Critical Points)",
+            yaxis=dict(title="Correlation Coefficient"),
+            xaxis=dict(title="Variables"),
+            height=500
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+        df_critico = df_critico[df_critico['TIME'] >= 250]
+        # Calcular correlação de Spearman
+        corr_spearman = df_critico[colunas].corr(method='spearman') \
+            .loc[['Pressão_de_Óleo']].drop('Pressão_de_Óleo', axis=1).T
+
+        # Plotar gráfico de barras
+        fig = go.Figure(data=go.Bar(
+            x=corr_spearman.index,
+            y=corr_spearman['Pressão_de_Óleo'],
+            marker_color='indianred'
+        ))
+
+        fig.update_layout(
+            title="Spearman Correlation: Oil Pressure vs Dynamic Variables (Critical Points)",
+            yaxis=dict(title="Spearman Correlation Coefficient"),
+            xaxis=dict(title="Variables"),
+            height=500
+        )
+
+        # Exibir no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tabs[3]:
+        st.subheader("Trend")
+        for i, driver in enumerate(st.session_state.selected_drivers):
+            Tag = st.session_state.get(f'Tag_{driver}')
+
+            # Selecionando o caminho do log com base na tag
+            File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+            # Read a file CSV
+            DfLog = pd.read_csv(File)
+            # Converting all columns to integers
+            # First, we convert to numbers and then to integers
+            DfLog = DfLog.apply(
+                pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+            driver_color = colors.get(driver, 'Orange')
+
+            # Adicionar o histograma de RPM
+            fig_hist.add_trace(go.Histogram(
+                x=DfLog['RPM'],
+                nbinsx=80,  # Ajuste o número de bins conforme necessário
+                marker=dict(color=driver_color),
+                name=f'{driver} - RPM trends'
+            ))
+
+            # Configurar o layout do gráfico
+            fig_hist.update_layout(
+                title='Histogram of RPM',
+                xaxis_title='RPM',
+                yaxis_title='Number of Occurrences',
+                plot_bgcolor='#0E1117',
+                paper_bgcolor='#0E1117',
+                font=dict(color='black', size=32),
+                height=400  # Ajuste a altura conforme necessário
+            )
+
+        # Exibir o gráfico no Streamlit
+        st.plotly_chart(fig_hist, use_container_width=True)

@@ -1,0 +1,529 @@
+#  ----------------------------------------------------------------------------------------------------------------------#
+# LIBRARY IMPORT
+# ----------------------------------------------------------------------------------------------------------------------#
+
+# Import library
+import streamlit as st  # Streamlit library
+import pandas as pd  # Pandas library is used of export excel data.
+from streamlit_option_menu import option_menu
+
+import plotly.graph_objects as go
+import plotly.subplots as sp
+import numpy as np
+import plotly.express as px
+
+
+# ----------------------------------------------------------------------------------------------------------------------#
+
+# Função para interpolar o valor de OilMin para uma rotação específica
+# Carrega os dados da planilha de pressões mínimas de óleo
+Oil_Pressure_Min = {
+    'RPM': [0, 1000, 1500, 3000, 4500, 6000, 7500, 9000, 10500],
+    'OilMin': [0, 0.7, 1, 1.5, 2.4, 3.9, 4.5, 4.8, 5]
+}
+
+
+def interpolar_pressao_minima(rpm_atual):
+    return np.interp(rpm_atual, Oil_Pressure_Min['RPM'], Oil_Pressure_Min['OilMin'])
+
+
+#  ----------------------------------------------------------------------------------------------------------------------#
+# Setup setting
+# ----------------------------------------------------------------------------------------------------------------------#
+st.title("Driver Data Analysis")
+
+if st.session_state.uploaded_file is None:  # If the workbook is not selected
+    st.write('Seleted the WorkBook')
+
+if st.session_state['uploaded_file'] is not None:  # If the workbook is selected
+
+    # Dicionário de mapeamento de tag para log_path
+    log_paths = {
+        '1': 'Logs/RafaSkidPad.csv',
+        '3': 'Logs/MunizSkidPad.csv',
+        '5': 'Logs/JeniferSkidpad.csv'
+        # Adicione mais tags e caminhos conforme necessário
+    }
+    colors = {
+        "Jenifer": "blue",
+        "Muniz": "red",
+        "Rafael": "green",
+        "Piloto4": "purple",
+        # Adicione mais pilotos e cores conforme necessário
+    }
+
+    row_heights = [1, 1.5, 0.5, 0.3]
+
+    fig = sp.make_subplots(rows=4, cols=1, shared_xaxes=True,
+                           vertical_spacing=0.06, row_heights=row_heights)
+
+    Lap = str(st.session_state['Selected_lap'])  # Convertendo para string
+
+    for i, driver in enumerate(st.session_state.selected_drivers):
+        Tag = st.session_state.get(f'Tag_{driver}')
+
+        # Selecionando o caminho do log com base na tag
+        File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+        # Read a file CSV
+        DfLog = pd.read_csv(File)
+        # Converting all columns to integers
+        # First, we convert to numbers and then to integers
+        DfLog = DfLog.apply(
+            pd.to_numeric, errors='coerce').fillna(0).astype(float)
+        Colune1, Colune2, Colune3 = st.columns(3)
+        with Colune1:
+            st.markdown(
+                f"""
+                            <div style="
+                                display: inline-block;
+                                padding: 8px 20px;
+                                margin-top: 0px;
+                                background-color: #666262;
+                                border-radius: 4px;
+                                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);                                    font-size: 16px;
+                                color: #fcfcfc;
+                                text-align: center;
+                            ">
+                                Drive: {
+                    st.session_state['General_Information'].loc[Tag - 1, ('Piloto')]}
+                            </div>
+                            """,
+                unsafe_allow_html=True
+            )
+        with Colune2:
+            st.markdown(
+                f"""
+                            <div style="
+                                display: inline-block;
+                                padding: 8px 20px;
+                                margin-top: 0px;
+                                background-color: #666262;
+                                border-radius: 4px;
+                                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);                                    font-size: 16px;
+                                color: #fcfcfc;
+                                text-align: center;
+                            ">
+                                Lap: {Lap}
+                            </div>
+                            """,
+                unsafe_allow_html=True
+            )
+        with Colune3:
+            st.markdown(
+                f"""
+                            <div style="
+                                display: inline-block;
+                                padding: 8px 20px;
+                                margin-top: 0px;
+                                background-color: #666262;
+                                border-radius: 4px;
+                                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);                                    font-size: 16px;
+                                color: #fcfcfc;
+                                text-align: center;
+                            ">
+                                Test: {
+                    st.session_state['General_Information'].loc[Tag - 1, ('Prova')]}
+                            </div>
+                            """,
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                '<div style="margin-top: 20px;"></div>', unsafe_allow_html=True)
+
+    tabs = st.tabs(
+        ["Driving Influences", "Throttle", "Analysis acceleration", "Trends", "Lap Time"])
+
+    with tabs[0]:
+        st.subheader("Driving Influences")
+
+        for i, driver in enumerate(st.session_state.selected_drivers):
+            Tag = st.session_state.get(f'Tag_{driver}')
+
+            # Selecionando o caminho do log com base na tag
+            File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+            # Read a file CSV
+            DfLog = pd.read_csv(File)
+
+            # Converting all columns to integers
+            # First, we convert to numbers and then to integers
+            DfLog = DfLog.apply(
+                pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+            variable_driving_Log = [
+                'RPM', 'Speed', 'TPS']
+
+            # Use 'Orange' como padrão se o piloto não estiver no dicionário
+            driver_color = colors.get(driver, 'Orange')
+
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['RPM'],
+                                     mode='lines', name=f'{driver} - RPM',  line=dict(color=driver_color)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['Velocidade_de_referência'], mode='lines', name=f'{
+                driver} - Speed',  line=dict(color=driver_color)),  row=2, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['TPS'], mode='lines',  name=f'{
+                driver}-TPS',  line=dict(color=driver_color)), row=3, col=1)
+            # fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['Marcha'], mode='lines', name=f'{
+            # driver} - Gear', line=dict(color=driver_color)), row=4, col=1)
+
+            # Configura o layout do gráfico
+            fig.update_layout(
+                # Adiciona um título
+                title={
+                    'text': f'Data analysis driving',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'y': 0.95,
+                    'yanchor': 'top',
+                    'font': {'size': 32}
+                },
+                showlegend=False,
+                hovermode="x unified",
+                height=600,
+                # Cor de fundo do gráfico (área de plotagem)
+                plot_bgcolor='#0E1117',
+                # Cor de fundo do papel (área fora do gráfico)
+                paper_bgcolor='#0E1117'
+            )
+            # Oculta os eixos y para os 6 gráficos de linha gerados
+            fig.update_yaxes(showticklabels=False)
+
+        # Adiciona os nomes das variáveis no eixo Y para os 6 gráficos de linha gerados
+        for j, variable_driving in enumerate(variable_driving_Log, start=1):
+            fig.update_yaxes(title_text=variable_driving, row=j, col=1)
+
+        # Usa o st.plotly_chart para exibir o gráfico no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tabs[1]:
+
+        st.subheader("Throttle Influences")
+        fig = sp.make_subplots(rows=4, cols=1, shared_xaxes=True,
+                               vertical_spacing=0.06, row_heights=row_heights)
+
+        for i, driver in enumerate(st.session_state.selected_drivers):
+            Tag = st.session_state.get(f'Tag_{driver}')
+
+            # Selecionando o caminho do log com base na tag
+            File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+            # Read a file CSV
+            DfLog = pd.read_csv(File)
+            # Converting all columns to integers
+            # First, we convert to numbers and then to integers
+            DfLog = DfLog.apply(
+                pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+            # Cria uma coluna que verifica se o TPS está acima de 95%
+            DfLog['TPS_above_95'] = DfLog['TPS'] > 90
+            sample_interval = 1 / 50  # 50 Hz -> 0.02 segundos
+            # Cria uma coluna que acumula o tempo em que o TPS está acima de 95% ao longo da volta
+            DfLog['t100%TPS'] = DfLog['TPS_above_95'].cumsum() * \
+                sample_interval
+
+            tLap = DfLog['Distância'].iloc[-1]  # calcular A VOLTA tLap
+
+            # Calcular a porcentagem de TPS
+            TPSPorcentagem = 100 * \
+                (DfLog['t100%TPS'].iloc[-1] / DfLog['Distância'].iloc[-1])
+
+            # Calcular a derivada do TPS em relação ao tempo
+            # Calcule a diferença no TPS e divida pelo intervalo de tempo
+            DfLog['vTP(t)'] = DfLog['TPS'].diff() / sample_interval
+
+            # Para lidar com o NaN na primeira linha que resulta da operação diff()
+            DfLog['vTP(t)'] = DfLog['vTP(t)'].fillna(
+                0)  # ou algum valor apropriado, como 0
+
+            # Exibir as colunas desejadas
+
+            variable_driving_Log = [
+                'Speed', 'TPS', 'Full TPS', 'Speed TPS']
+
+            row_heights = [2, 0.2, 0.2, 2]
+            # Use 'Orange' como padrão se o piloto não estiver no dicionário
+            driver_color = colors.get(driver, 'Orange')
+
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['Velocidade_de_referência'],
+                                     mode='lines', name=f'{driver} - Speed',  line=dict(color=driver_color)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['TPS'], mode='lines',  name=f'{
+                driver} - TPS',  line=dict(color=driver_color)), row=2, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['t100%TPS'], mode='lines', name=f'{
+                driver} - Full TPS',  line=dict(color=driver_color)), row=3, col=1)
+            fig.add_trace(go.Scatter(x=DfLog['Distância'], y=DfLog['vTP(t)'], mode='lines',  name=f'{
+                driver} - Speed TPS',  line=dict(color=driver_color)), row=4, col=1)
+
+            # Configura o layout do gráfico
+            fig.update_layout(
+                # Adiciona um título
+                title={
+                    'text': f'Data analysis driving',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'y': 0.95,
+                    'yanchor': 'top',
+                    'font': {'size': 32}
+                },
+                showlegend=False,
+                hovermode="x unified",
+                height=600,
+                # Cor de fundo do gráfico (área de plotagem)
+                plot_bgcolor='#0E1117',
+                # Cor de fundo do papel (área fora do gráfico)
+                paper_bgcolor='#0E1117'
+            )
+            # Oculta os eixos y para os 6 gráficos de linha gerados
+            fig.update_yaxes(showticklabels=False)
+
+            # Adiciona os nomes das variáveis no eixo Y para os 6 gráficos de linha gerados
+            for j, variable_driving in enumerate(variable_driving_Log, start=1):
+                fig.update_yaxes(title_text=variable_driving, row=j, col=1)
+
+        # Usa o st.plotly_chart para exibir o gráfico no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tabs[2]:
+
+        #  ----------------------------------------------------------------------------------------------------------------------#
+        # Filter
+        # ----------------------------------------------------------------------------------------------------------------------#
+        # Cálculo da aceleração longitudinal
+        sample_time = 1 / 100  # considerando frequência de amostragem de 50 Hz
+
+        g = 9.81  # aceleração da gravidade em m/s²
+
+        # Cálculo da aceleração longitudinal em g
+        acc_long_g = DfLog['AccLongitudinal'] = (
+            (DfLog['Velocidade_de_referência']/3.6).diff() / sample_time) / g
+        # Define condição de aceleração implausível
+        cond_erro_spike = (DfLog['Velocidade_de_referência'] > 30) & (
+            acc_long_g.abs() <= 10)
+        cond_parado = acc_long_g.abs() <= 0.05
+        cond_vel_alta_sem_acc = (DfLog['Velocidade_de_referência'] > 30) & (
+            acc_long_g.abs() <= 0.05)
+
+        # Combina as duas condições
+        cond_erro_vel = cond_vel_alta_sem_acc | cond_erro_spike
+
+        # Corrige velocidade se for implausível
+        DfLog['Velocidade_corrigida'] = DfLog['Velocidade_de_referência']
+        DfLog.loc[cond_parado, 'Velocidade_corrigida'] = np.nan   # ou = 0
+        DfLog.loc[cond_vel_alta_sem_acc, 'Velocidade_corrigida'] = 0  # ou = 0
+
+        # Interpolar os buracos
+        DfLog['Velocidade_corrigida'] = DfLog['Velocidade_corrigida'].interpolate(
+        ).fillna(method='bfill').fillna(method='ffill')
+
+        # E aplicar uma média móvel se quiser mais suavização
+        DfLog['Velocidade_corrigida'] = DfLog['Velocidade_corrigida'].rolling(
+            window=80, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+
+        # ----------------------------------------------------------------------------------------------------------------------#
+
+        # Cálculo da aceleração longitudinal
+        sample_time = 1 / 100  # considerando frequência de amostragem de 50 Hz
+
+        # Cálculo da aceleração longitudinal em g
+        DfLog['AccLongitudinal'] = (
+            (DfLog['Velocidade_corrigida']/3.6).diff() / sample_time) / g
+
+        # Cálculo da aceleração lateral em g (Skidpad padrão com raio de 8.5 m) e G combinado
+        raio_skidpad = 8.5  # metros
+        DfLog['AccLateral'] = (
+            ((DfLog['Velocidade_corrigida']/3.6) ** 2) / raio_skidpad) / g
+
+        DfLog['G_Comb'] = np.sqrt(
+            DfLog['AccLongitudinal']**2 + DfLog['AccLateral']**2) / g
+
+        # E aplicar uma média móvel se quiser mais suavização
+        DfLog['AccLongitudinal'] = DfLog['AccLongitudinal'].rolling(
+            window=30, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+        DfLog['AccLateral'] = DfLog['AccLateral'].rolling(
+            window=20, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+        DfLog['G_Comb'] = DfLog['G_Comb'].rolling(
+            window=30, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+
+        # Filtra os pontos com baixa pressão de óleo
+        DfLog['Pressao_Minima_Interpolada'] = DfLog['RPM'].apply(
+            interpolar_pressao_minima)
+        df_baixa_pressao = DfLog[DfLog['Pressão_de_Óleo']
+                                 < DfLog['Pressao_Minima_Interpolada']]
+        df_normal = DfLog[DfLog['Pressão_de_Óleo']
+                          >= DfLog['Pressao_Minima_Interpolada']]
+
+        # Criação do gráfico
+        fig = go.Figure()
+
+        # Pontos normais
+        fig.add_trace(go.Scatter(
+            x=df_normal['AccLongitudinal'],
+            y=df_normal['AccLateral'],
+            mode='markers',
+            marker=dict(color='deepskyblue', size=6, opacity=0.6),
+            name='Normal Oil Pressure'
+        ))
+
+        # Pontos com pressão abaixo da mínima
+        fig.add_trace(go.Scatter(
+            x=df_baixa_pressao['AccLateral'],
+            y=df_baixa_pressao['AccLongitudinal'],
+            mode='markers',
+            marker=dict(color='red', size=8, opacity=0.9, symbol='x'),
+            name='Low Oil Pressure'
+        ))
+
+        # Layout padronizado
+        fig.update_layout(
+            title={
+                'text': 'Lateral vs Longitudinal Acceleration with Oil Pressure Alerts',
+                'x': 0.5,
+                'xanchor': 'center',
+                'y': 0.95,
+                'yanchor': 'top',
+                'font': {'size': 32}
+            },
+            yaxis_title="Longitudinal Acceleration (g)",
+            xaxis_title="Lateral Acceleration (g)",
+            hovermode="closest",
+            height=600,
+            plot_bgcolor='#0E1117',
+            paper_bgcolor='#0E1117',
+            font=dict(color='white'),
+            showlegend=True
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tabs[3]:
+
+        st.subheader("Trend")
+        # Criação da figura
+        # Criação do histograma
+        fig_hist = go.Figure()
+
+        for i, driver in enumerate(st.session_state.selected_drivers):
+            Tag = st.session_state.get(f'Tag_{driver}')
+
+            # Selecionando o caminho do log com base na tag
+            File = f"Logs/{st.session_state['General_Information'].loc[Tag-1, 'Nome do log']}.csv"
+
+            # Read a file CSV
+            DfLog = pd.read_csv(File)
+            # Converting all columns to integers
+            # First, we convert to numbers and then to integers
+            DfLog = DfLog.apply(
+                pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+            driver_color = colors.get(driver, 'Orange')
+
+            # Adicionar o histograma de RPM
+            fig_hist.add_trace(go.Histogram(
+                x=DfLog['Velocidade_de_referência'],
+                nbinsx=50,  # Ajuste o número de bins conforme necessário
+                marker=dict(color=driver_color),
+                name=f'{driver} - Speed Trends'
+            ))
+
+            # Configurar o layout do gráfico
+            fig_hist.update_layout(
+                title='Histogram of Speed',
+                xaxis_title='Speed',
+                yaxis_title='Number of Occurrences',
+                plot_bgcolor='#0E1117',
+                paper_bgcolor='#0E1117',
+                font=dict(color='black'),
+                height=400  # Ajuste a altura conforme necessário
+            )
+
+        # Exibir o gráfico no Streamlit
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+    with tabs[4]:
+
+        # Supondo que os dados dos DataFrames estejam carregados no st.session_state
+        timing_df = st.session_state['Timing']
+        general_info_df = st.session_state['General_Information']
+
+        # Dicionário de cores para cada piloto
+        colors = {
+            "Jenifer": "blue",
+            "Muniz": "red",
+            "Rafael": "green",
+            "Piloto4": "purple",
+            # Adicione mais pilotos e cores conforme necessário
+        }
+        # Adicione o nome do piloto no timing_df
+        timing_df['Piloto'] = timing_df['Tag'].apply(
+            lambda tag: general_info_df.loc[tag - 1, 'Piloto']
+        )
+  # Calcula a mediana dos tempos de volta para cada piloto
+        ordem_pilotos = (
+            timing_df.groupby("Piloto")["Stopwatch"]
+            .median()
+            .sort_values()
+            .index
+        )
+
+        # Criação do boxplot com Plotly, aplicando a ordem de pilotos
+        fig = px.box(
+            timing_df,
+            x='Piloto',          # Piloto no eixo X
+            y='Stopwatch',       # Tempo de volta no eixo Y
+            title='Distribution of Lap Times by Driver',
+            color='Piloto',      # Cor por piloto
+            # Define a ordem dos pilotos
+            category_orders={'Piloto': ordem_pilotos},
+            color_discrete_map=colors  # Aplicando cores específicas por piloto
+        )
+
+        # Configura o layout do gráfico para tema escuro
+        fig.update_layout(
+            plot_bgcolor='#0E1117',  # Cor de fundo escura
+            paper_bgcolor='#0E1117',
+            font=dict(color='white'),
+            title_font=dict(size=24)
+        )
+
+        # Exibe o gráfico no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Ordenar o DataFrame pelo Laptime
+        timing_df = timing_df.sort_values(by='Stopwatch', ascending=True)
+
+        # Função para colorir as linhas de acordo com o piloto
+        def colorir_linha(row):
+            piloto = row['Piloto']
+            # Branco como cor padrão se o piloto não estiver no dicionário
+            cor = colors.get(piloto, '#FFFFFF')
+            return [f'background-color: {cor}'] * len(row)
+
+        # Selecionando apenas as colunas de interesse
+        tabela_final = timing_df[['Lap', 'Stopwatch', 'Piloto']]
+
+        # Aplicando o estilo e convertendo para HTML, adicionando a classe CSS
+        styled_df = tabela_final.style.apply(colorir_linha, axis=1)
+        html = styled_df.set_table_attributes(
+            'class="dataframe-table"').to_html(hide_index=True)
+
+        # CSS para expandir a tabela na tela toda
+        st.markdown("""
+            <style>
+            .dataframe-table {
+                width: 100%;
+                text-align: center;
+                border-collapse: collapse;
+            }
+            .dataframe-table th, .dataframe-table td {
+                padding: 12px;
+                font-size: 16px;
+                text-align: center;
+            }
+            .dataframe-table th {
+                background-color: #000000;
+                font-weight: bold;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Exibindo o HTML da tabela
+        st.markdown(html, unsafe_allow_html=True)

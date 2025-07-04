@@ -1,0 +1,400 @@
+#  ----------------------------------------------------------------------------------------------------------------------#
+# LIBRARY IMPORT
+# ----------------------------------------------------------------------------------------------------------------------#
+
+# Import library
+import streamlit as st  # Streamlit library
+import pandas as pd  # Pandas library is used of export excel data.
+from streamlit_option_menu import option_menu
+from PIL import Image
+
+# ----------------------------------------------------------------------------------------------------------------------#
+
+
+#  ----------------------------------------------------------------------------------------------------------------------#
+# Setup setting
+# ----------------------------------------------------------------------------------------------------------------------#
+st.title("Setup Settings")
+
+if st.session_state.uploaded_file is None:  # If the workbook is not selected
+    st.write('Seleted the WorkBook')
+
+if st.session_state['uploaded_file'] is not None:  # If the workbook is selected
+    st.divider()
+    Brake = Image.open('./Images/FreioBranco.png')
+    Camber = Image.open('./Images/CamberPos.png')
+    Toe = Image.open('./Images/ToeIn.png')
+    Coil_Spring = Image.open('./Images/Coil_Spring.png')
+    Rebound = Image.open('./Images/Rebound.png')
+    Compression = Image.open('./Images/Compression.png')
+    DHX = Image.open('./Images/DHX.png')
+    Tag = st.session_state['Tag']
+
+    tabs = st.tabs(["Brake",
+                   "Suspension"])
+
+    for i, driver in enumerate(st.session_state.selected_drivers):
+
+        with tabs[0]:  # If Weight Information
+            if i >= 1:
+                st.divider()
+            Colune1, Colune2 = st.columns(2)
+
+            with Colune1:
+                Tag = st.session_state.get(f'Tag_{driver}')
+
+                Colune11, Colune12 = st.columns(2)
+                with Colune11:
+                    st.markdown(
+                        f"""
+                                    <div style="
+                                        display: inline-block;
+                                        padding: 8px 20px;
+                                        margin-top: 0px;
+                                        background-color: #666262;
+                                        border-radius: 4px;
+                                        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);                                    font-size: 16px;
+                                        color: #fcfcfc;
+                                        text-align: center;
+                                    ">
+                                        Drive: {
+                            st.session_state['General_Information'].loc[Tag - 1, ('Piloto')]}
+                                    </div>
+                                    """,
+                        unsafe_allow_html=True
+                    )
+                    st.write("  ")
+                    st.markdown(
+                        '<div style="margin-top: 21px;"></div>', unsafe_allow_html=True)
+
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Brake Bias Front (%): {st.session_state['Setup'].loc[Tag - 1, ('Brake Bias Front')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    st.markdown(
+                        '<div style="margin-top: 21px;"></div>', unsafe_allow_html=True)
+
+                    with Colune12:
+                        st.markdown(
+                            '<div style="margin-top: 70px;"></div>', unsafe_allow_html=True)
+
+                        st.image(Brake, use_column_width=False, width=60)
+            with Colune2:
+                Colune21, Colune22 = st.columns(2)
+                with Colune21:
+                    st.markdown(
+                        '<div style="margin-top: 75px;"></div>', unsafe_allow_html=True)
+
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Brake Bias Rear (%): {100 - st.session_state['Setup'].loc[Tag - 1, ('Brake Bias Front')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune22:
+                        st.markdown(
+                            '<div style="margin-top: 75px;"></div>', unsafe_allow_html=True)
+
+                        st.image(Brake, use_column_width=False, width=60)
+        with tabs[1]:  # If Weight Information
+            if i >= 1:
+                st.divider()
+
+            Colune1, Colune2, Colune3 = st.columns(3)
+
+            with Colune1:
+                Colune11, Colune12 = st.columns(2)
+                with Colune11:
+                    st.markdown(
+                        f"""
+                                    <div style="
+                                        display: inline-block;
+                                        padding: 8px 20px;
+                                        margin-top: 0px;
+                                        background-color: #666262;
+                                        border-radius: 4px;
+                                        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);                                    font-size: 16px;
+                                        color: #fcfcfc;
+                                        text-align: center;
+                                    ">
+                                        Drive: {
+                            st.session_state['General_Information'].loc[Tag - 1, ('Piloto')]}
+                                    </div>
+                                    """,
+                        unsafe_allow_html=True
+                    )
+                    st.write("  ")
+                    st.markdown(
+                        '<div style="margin-top: 21px;"></div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Toe
+                                    (%): {st.session_state['Setup'].loc[Tag - 1, ('Toe')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune12:
+                        st.markdown(
+                            '<div style="margin-top: 60px;"></div>', unsafe_allow_html=True)
+                        st.image(Toe, use_column_width=False, width=170)
+
+            with Colune2:
+                Colune21, Colune22 = st.columns(2)
+                with Colune21:
+                    st.markdown(
+                        '<div style="margin-top: 70px;"></div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Camber Rear (%): {st.session_state['Setup'].loc[Tag - 1, ('Camber rear')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune22:
+                        st.markdown(
+                            '<div style="margin-top: 65px;"></div>', unsafe_allow_html=True)
+                        st.image(Camber, use_column_width=False, width=160)
+
+            with Colune3:
+                Colune31, Colune32 = st.columns(2)
+
+                with Colune31:
+                    st.markdown(
+                        '<div style="margin-top: 70px;"></div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Camber Front (%): {st.session_state['Setup'].loc[Tag - 1, ('Camber front')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune32:
+                        st.markdown(
+                            '<div style="margin-top: 65px;"></div>', unsafe_allow_html=True)
+                        st.image(Camber, use_column_width=False, width=160)
+
+            Colune1, Colune2, Colune3 = st.columns(3)
+
+            with Colune1:
+                Colune11, Colune12 = st.columns(2)
+                with Colune11:
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Rebound (Clicks): {st.session_state['Setup'].loc[Tag - 1, ('Rebound [Clicks]')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune12:
+                        st.image(
+                            Rebound, use_column_width=False, width=145)
+
+            with Colune2:
+                Colune21, Colune22 = st.columns(2)
+                with Colune21:
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Preload Rear (mm): {st.session_state['Setup'].loc[Tag - 1, ('Coil Spring Preload Rear')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune22:
+                        st.image(
+                            Coil_Spring, use_column_width=False, width=75)
+
+            with Colune3:
+                Colune31, Colune32 = st.columns(2)
+                with Colune31:
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Preload Front (mm): {st.session_state['Setup'].loc[Tag - 1, ('Coil Spring Preload Front')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune32:
+                        st.image(
+                            Coil_Spring, use_column_width=False, width=75)
+
+            st.write(" ")
+
+            Colune1, Colune2, Colune3 = st.columns(3)
+
+            with Colune1:
+                Colune11, Colune12 = st.columns(2)
+                with Colune11:
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    DHX RC4 Air Assist  [Psi]: {st.session_state['Setup'].loc[Tag - 1, ('DHX RC4 Air Assist  [Psi]')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune12:
+                        st.image(DHX, use_column_width=False, width=80)
+
+            with Colune2:
+                Colune21, Colune22 = st.columns(2)
+                with Colune21:
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    Low Speed Compression  [Clicks]: {st.session_state['Setup'].loc[Tag - 1, (' Low Speed Compression  [Clicks]')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune22:
+                        st.image(
+                            Compression, use_column_width=False, width=150)
+
+            with Colune3:
+                Colune31, Colune32 = st.columns(2)
+                with Colune31:
+                    st.markdown(
+                        f"""
+                                <div style="
+                                    display: inline-block;
+                                    padding: 8px 20px;
+                                    margin-top: 0px;
+                                    background-color: #666262;
+                                    border-radius: 4px;
+                                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                                    font-size: 16px;
+                                    color: #fcfcfc;
+                                    text-align: center;
+                                ">
+                                    High Speed Compression  [Clicks]: {st.session_state['Setup'].loc[Tag - 1, ('High Speed Compression  [Clicks]')]}
+
+                                </div>
+                                """,
+                        unsafe_allow_html=True
+                    )
+                    with Colune32:
+                        st.image(
+                            Compression, use_column_width=False, width=150)
