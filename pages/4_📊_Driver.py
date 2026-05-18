@@ -5,7 +5,6 @@
 # Import library
 import streamlit as st  # Streamlit library
 import pandas as pd  # Pandas library is used of export excel data.
-from streamlit_option_menu import option_menu
 import io  # ADICIONE NO TOPO DO SCRIPT
 import plotly.graph_objects as go
 import plotly.subplots as sp
