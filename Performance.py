@@ -77,7 +77,7 @@ def atualizar_end_time():
     st.session_state["end_time"] = st.session_state["temp_end_time"]
 
 
-st.title("Software Data Analysis")
+st.title("Software Data Analysis - Formula Student")
 st.divider()
 
 Colune1, Colune2 = st.columns([1, 2.5])
