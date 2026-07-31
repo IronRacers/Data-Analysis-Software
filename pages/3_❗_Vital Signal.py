@@ -53,6 +53,13 @@ def validar_colunas(df, piloto, required_columns):
     return True
 
 
+def normalizar_distancia(df):
+    df.columns = [str(col).strip() for col in df.columns]
+    if 'Distância' not in df.columns and 'Distância_total' in df.columns:
+        df['Distância'] = df['Distância_total']
+    return df
+
+
 # --------------------------------------------------------------------------------------------------
 # ABA PRINCIPAL COM MULTITABS
 # --------------------------------------------------------------------------------------------------
@@ -212,6 +219,8 @@ with abas[1]:
             df = localizar_log_piloto(driver)
             if df is None:
                 continue
+
+            df = normalizar_distancia(df)
             df = df.apply(pd.to_numeric, errors='coerce').fillna(
                 0).astype(float)
 
@@ -313,6 +322,7 @@ with abas[2]:
         if df is None:
             continue
 
+        df = normalizar_distancia(df)
         df = df.apply(pd.to_numeric, errors='coerce').fillna(0)
         if not validar_colunas(df, driver, ['RPM', 'Velocidade_de_referência', 'Pressão_de_Óleo']):
             continue
