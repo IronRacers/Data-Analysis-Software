@@ -126,7 +126,7 @@ with abas[0]:
             unsafe_allow_html=True
         )
 
-        df_log = df_log.apply(pd.to_numeric, errors='coerce').fillna(0)
+        df_log = safe_convert_numeric(df_log).fillna(0)
         if not validar_colunas(df_log, piloto, ['Tensão_da_Bateria']):
             continue
         filtered_df = df_log[df_log['Tensão_da_Bateria'] >= 6]
