@@ -42,6 +42,17 @@ def localizar_log_piloto(piloto):
     return None
 
 
+def validar_colunas(df, piloto, required_columns):
+    df.columns = [str(col).strip() for col in df.columns]
+    missing = [col for col in required_columns if col not in df.columns]
+    if missing:
+        st.warning(
+            f"Dados inválidos ou colunas faltando para {piloto}: {', '.join(missing)}"
+        )
+        return False
+    return True
+
+
 # --------------------------------------------------------------------------------------------------
 # ABA PRINCIPAL COM MULTITABS
 # --------------------------------------------------------------------------------------------------
@@ -96,6 +107,8 @@ with abas[0]:
         )
 
         df_log = df_log.apply(pd.to_numeric, errors='coerce').fillna(0)
+        if not validar_colunas(df_log, piloto, ['Tensão_da_Bateria']):
+            continue
         filtered_df = df_log[df_log['Tensão_da_Bateria'] >= 6]
 
         # Definição dos parâmetros
@@ -197,12 +210,16 @@ with abas[1]:
 
         for driver in st.session_state["selected_drivers"]:
             df = localizar_log_piloto(driver)
-            if df is None or "Distância" not in df.columns:
-                st.warning(f"❌ Missing or malformed data for driver: {driver}")
+            if df is None:
                 continue
-
             df = df.apply(pd.to_numeric, errors='coerce').fillna(
                 0).astype(float)
+
+            if not validar_colunas(df, driver, [
+                'Distância', 'RPM', 'Temp._do_motor',
+                'Tensão_da_Bateria', 'Pressão_de_Óleo', 'Pressão_de_Combustível'
+            ]):
+                continue
             driver_color = colors.get(driver, 'orange')
 
             for i, var in enumerate(variable_driving_Log):
@@ -297,6 +314,8 @@ with abas[2]:
             continue
 
         df = df.apply(pd.to_numeric, errors='coerce').fillna(0)
+        if not validar_colunas(df, driver, ['RPM', 'Velocidade_de_referência', 'Pressão_de_Óleo']):
+            continue
         df['Pressao_Minima_Interpolada'] = interpolar_pressao_minima(df['RPM'])
 
         # Cálculos de acelerações

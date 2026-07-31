@@ -25,6 +25,17 @@ def localizar_log_piloto(piloto):
     return None
 
 
+def validar_colunas(df, piloto, required_columns):
+    df.columns = [str(col).strip() for col in df.columns]
+    missing = [col for col in required_columns if col not in df.columns]
+    if missing:
+        st.warning(
+            f"Dados inválidos ou colunas faltando para {piloto}: {', '.join(missing)}"
+        )
+        return False
+    return True
+
+
 # ----------------------------------------------------------------------------------------------------------------------#
 
 
@@ -59,14 +70,6 @@ fig = sp.make_subplots(rows=4, cols=1, shared_xaxes=True,
                        vertical_spacing=0.06, row_heights=row_heights)
 
 
-for i, driver in enumerate(st.session_state.selected_drivers):
-
-    df = localizar_log_piloto(driver)
-    if df is None:
-        continue
-    df = df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
-
-
 tabs = st.tabs(
     ["Driving Influences", "Throttle", "Analysis acceleration", "Trends"])
 
@@ -87,6 +90,9 @@ with tabs[0]:
                 continue
             df = df.apply(pd.to_numeric, errors='coerce').fillna(
                 0).astype(float)
+
+            if not validar_colunas(df, driver, ['Distância', 'RPM', 'Velocidade_de_referência', 'TPS']):
+                continue
 
             driver_color = colors.get(driver, 'Orange')
 
@@ -156,6 +162,9 @@ with tabs[1]:
             continue
         df = df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
 
+        if not validar_colunas(df, driver, ['Distância', 'TPS', 'Velocidade_de_referência']):
+            continue
+
         # Cria uma coluna que verifica se o TPS está acima de 95%
         df['TPS_above_95'] = df['TPS'] > 90
         sample_interval = 1 / 50  # 50 Hz -> 0.02 segundos
@@ -188,12 +197,9 @@ with tabs[1]:
 
         fig.add_trace(go.Scatter(x=df['Distância'], y=df['Velocidade_de_referência'],
                                  mode='lines', name=f'{driver} - Speed',  line=dict(color=driver_color)), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df['Distância'], y=df['TPS'], mode='lines',  name=f'{
-            driver} - TPS',  line=dict(color=driver_color)), row=2, col=1)
-        fig.add_trace(go.Scatter(x=df['Distância'], y=df['t100%TPS'], mode='lines', name=f'{
-            driver} - Full TPS',  line=dict(color=driver_color)), row=3, col=1)
-        fig.add_trace(go.Scatter(x=df['Distância'], y=df['vTP(t)'], mode='lines',  name=f'{
-            driver} - Speed TPS',  line=dict(color=driver_color)), row=4, col=1)
+        fig.add_trace(go.Scatter(x=df['Distância'], y=df['TPS'], mode='lines',  name=f'{driver} - TPS',  line=dict(color=driver_color)), row=2, col=1)
+        fig.add_trace(go.Scatter(x=df['Distância'], y=df['t100%TPS'], mode='lines', name=f'{driver} - Full TPS',  line=dict(color=driver_color)), row=3, col=1)
+        fig.add_trace(go.Scatter(x=df['Distância'], y=df['vTP(t)'], mode='lines',  name=f'{driver} - Speed TPS',  line=dict(color=driver_color)), row=4, col=1)
 
         # Configura o layout do gráfico
         fig.update_layout(
@@ -254,6 +260,9 @@ with tabs[2]:
 
             df = df.apply(pd.to_numeric, errors='coerce').fillna(
                 0).astype(float)
+
+            if not validar_colunas(df, driver, ['Velocidade_de_referência']):
+                continue
 
             # Correção e suavização da velocidade
             df['Velocidade_corrigida'] = df['Velocidade_de_referência'].interpolate(
@@ -400,6 +409,9 @@ with tabs[3]:
             continue
         df = df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
 
+        if not validar_colunas(df, driver, ['Velocidade_de_referência']):
+            continue
+
         driver_color = colors.get(driver, 'Orange')
 
         # Adicionar o histograma de RPM
@@ -433,6 +445,9 @@ with tabs[3]:
         if df is None:
             continue
         df = df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
+
+        if not validar_colunas(df, driver, ['TPS']):
+            continue
 
         driver_color = colors.get(driver, 'Orange')
 
