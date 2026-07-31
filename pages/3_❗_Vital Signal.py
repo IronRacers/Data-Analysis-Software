@@ -344,11 +344,15 @@ with abas[2]:
         df.loc[cond_parado, 'Velocidade_corrigida'] = np.nan
         df.loc[cond_vel_alta_sem_acc, 'Velocidade_corrigida'] = 0
 
-        df['Velocidade_corrigida'] = df['Velocidade_corrigida'].interpolate().fillna(
-            method='bfill').fillna(method='ffill')
-        df['Velocidade_corrigida'] = pd.to_numeric(df['Velocidade_corrigida'], errors='coerce')
-        df['Velocidade_corrigida'] = df['Velocidade_corrigida'].rolling(
-            window=80, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+        if df['Velocidade_corrigida'].dtype.kind in 'biufc':
+            df['Velocidade_corrigida'] = df['Velocidade_corrigida'].interpolate()
+            df['Velocidade_corrigida'] = df['Velocidade_corrigida'].fillna(
+                method='bfill').fillna(method='ffill')
+            df['Velocidade_corrigida'] = df['Velocidade_corrigida'].rolling(
+                window=80, center=True).mean().fillna(method='bfill').fillna(method='ffill')
+        else:
+            df['Velocidade_corrigida'] = pd.to_numeric(df['Velocidade_corrigida'], errors='coerce')
+            df['Velocidade_corrigida'] = df['Velocidade_corrigida'].fillna(0)
 
         df['AccLongitudinal'] = (
             (df['Velocidade_corrigida'] / 3.6).diff() / sample_time) / g
