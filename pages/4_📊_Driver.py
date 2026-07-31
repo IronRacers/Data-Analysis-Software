@@ -36,6 +36,13 @@ def validar_colunas(df, piloto, required_columns):
     return True
 
 
+def normalizar_distancia(df):
+    df.columns = [str(col).strip() for col in df.columns]
+    if 'Distância' not in df.columns and 'Distância_total' in df.columns:
+        df['Distância'] = df['Distância_total']
+    return df
+
+
 # ----------------------------------------------------------------------------------------------------------------------#
 
 
@@ -88,6 +95,7 @@ with tabs[0]:
             df = localizar_log_piloto(driver)
             if df is None:
                 continue
+            df = normalizar_distancia(df)
             df = df.apply(pd.to_numeric, errors='coerce').fillna(
                 0).astype(float)
 
@@ -160,6 +168,7 @@ with tabs[1]:
         df = localizar_log_piloto(driver)
         if df is None:
             continue
+        df = normalizar_distancia(df)
         df = df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
 
         if not validar_colunas(df, driver, ['Distância', 'TPS', 'Velocidade_de_referência']):
