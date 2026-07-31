@@ -340,12 +340,13 @@ with abas[2]:
             df['AccLongitudinal'].abs() <= 0.05)
         cond_erro_vel = cond_vel_alta_sem_acc | cond_erro_spike
 
-        df['Velocidade_corrigida'] = df['Velocidade_de_referência']
+        df['Velocidade_corrigida'] = pd.to_numeric(df['Velocidade_de_referência'], errors='coerce')
         df.loc[cond_parado, 'Velocidade_corrigida'] = np.nan
         df.loc[cond_vel_alta_sem_acc, 'Velocidade_corrigida'] = 0
 
         df['Velocidade_corrigida'] = df['Velocidade_corrigida'].interpolate().fillna(
             method='bfill').fillna(method='ffill')
+        df['Velocidade_corrigida'] = pd.to_numeric(df['Velocidade_corrigida'], errors='coerce')
         df['Velocidade_corrigida'] = df['Velocidade_corrigida'].rolling(
             window=80, center=True).mean().fillna(method='bfill').fillna(method='ffill')
 
