@@ -25,7 +25,7 @@ st.set_page_config(
 # Initialization ST.SESSION STATE
 # ----------------------------------------------------------------------------------------------------------------------#
 if 'selected_drivers' not in st.session_state:
-    st.session_state['selected_drivers'] = ["Jenifer"]
+    st.session_state['selected_drivers'] = []  # Initialize the list of selected drivers
 
 if "Goal" not in st.session_state:
     st.session_state["Goal"] = ""
@@ -102,7 +102,7 @@ with Colune1:
     # ----------------------------------------------------------------------------------------------------------------------#
     # SELECTED OF THE DRIVERS
     # ----------------------------------------------------------------------------------------------------------------------#
-    DriverList = ["Jenifer", "Muniz", "Rafael"]  # List of drivers
+    DriverList = ["Jenifer", "Muniz", "Rafael", "Judah"]  # List of drivers
     st.session_state.selected_drivers = selected_drivers = st.multiselect(
         'Select the drivers:', DriverList, key='season_drivers', max_selections=6, default=st.session_state.selected_drivers)
     # Initializing lists to store data for the selected drivers
