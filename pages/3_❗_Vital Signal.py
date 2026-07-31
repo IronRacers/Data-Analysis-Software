@@ -60,6 +60,19 @@ def normalizar_distancia(df):
     return df
 
 
+def safe_convert_numeric(df):
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            try:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            except OverflowError:
+                df[col] = pd.to_numeric(
+                    df[col].astype(str).str.replace(r'[^0-9.+\-eE]', '', regex=True),
+                    errors='coerce'
+                )
+    return df
+
+
 # --------------------------------------------------------------------------------------------------
 # ABA PRINCIPAL COM MULTITABS
 # --------------------------------------------------------------------------------------------------
